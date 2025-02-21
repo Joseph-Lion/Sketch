@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sketch</title>
+    <!-- Add Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+</head>
+
+<body class="bg-[#D0CAC6] text-[#1C1C1CBF]">
+
+    <div id="controls"
+        class="flex flex-col rounded-xl bg-white/80 shadow-lg backdrop-blur-3xl w-80 m-6 fixed top-0 left-0">
+
+        <div class="flex gap-5 py-6 justify-between items-center border-b border-[#1C1C1C26]">
+            <button class="ml-8" data-size="3">Small</button>
+            <button class="active underline underline-offset-4 decoration-[#1C1C1C26]" data-size="6">Regular</button>
+            <button data-size="12">Medium</button>
+            <button class="mr-8" data-size="24">Large</button>
+        </div>
+
+        <div class="flex">
+            <button class="flex-1 py-9 active rounded-bl-xl relative" style="background-color: #262626"
+                data-color="#262626">
+                <div
+                    class="absolute w-2 h-2 bg-white/20 rounded-full top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                </div>
+            </button>
+            <button class="flex-1 py-8 relative" style="background-color: #FAFAFA" data-color="#FAFAFA">
+                <div
+                    class="absolute w-2 h-2 bg-black/10 rounded-full top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0">
+                </div>
+            </button>
+            <button class="flex-1 py-8 relative" style="background-color: #DFDBD9" data-color="#DFDBD9">
+                <div
+                    class="absolute w-2 h-2 bg-black/10 rounded-full top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0">
+                </div>
+            </button>
+            <button class="flex-1 py-8 rounded-br-xl relative" style="background-color: #F1FF56" data-color="#F1FF56">
+                <div
+                    class="absolute w-2 h-2 bg-black/10  rounded-full top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0">
+                </div>
+            </button>
+        </div>
+
+    </div>
+
+    <div id="controls]"
+        class="flex flex-col rounded-xl bg-white/80 shadow-lg backdrop-blur-3xl m-6 fixed bottom-0 left-0">
+        <div class="flex gap-8 py-6 justify-between items-center">
+            <button id="undo" class="ml-8" title="Undo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 10H17C19.2091 10 21 11.7909 21 14C21 16.2091 19.2091 18 17 18H12" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M7 6L3 10L7 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+            </button>
+            <button id="redo" title="Redo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 10H7C4.79086 10 3 11.7909 3 14C3 16.2091 4.79086 18 7 18H12" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M17 6L21 10L17 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+            </button>
+            <button id="clear" title="Clear">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 6H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <path d="M19 6V20C19 21.1046 18.1046 22 17 22H7C5.89543 22 5 21.1046 5 20V6" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M8 6V4C8 2.89543 8.89543 2 10 2H14C15.1046 2 16 2.89543 16 4V6" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </button>
+            <button id="download" class="mr-8" title="download">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+            </button>
+
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const undoButton = document.getElementById('undo');
+        const redoButton = document.getElementById('redo');
+
+        let currentSize = 6;
+        let currentColor = '#262626';
+        let isDrawing = false;
+        let paths = [];
+        let undonePaths = [];
+        let currentPath = [];
+
+        // Load saved data from localStorage
+        function loadFromLocalStorage() {
+            const savedPaths = localStorage.getItem('drawingPaths');
+            const savedUndonePaths = localStorage.getItem('drawingUndonePaths');
+
+            if (savedPaths) {
+                paths = JSON.parse(savedPaths);
+            }
+            if (savedUndonePaths) {
+                undonePaths = JSON.parse(savedUndonePaths);
+            }
+
+            redrawCanvas();
+        }
+
+        // Save current state to localStorage
+        function saveToLocalStorage() {
+            localStorage.setItem('drawingPaths', JSON.stringify(paths));
+            localStorage.setItem('drawingUndonePaths', JSON.stringify(undonePaths));
+        }
+
+        // Set up size buttons
+        document.querySelectorAll('[data-size]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('[data-size]').forEach(b => b.classList.remove('active', 'underline', 'underline-offset-4', 'decoration-[#1C1C1C26]'));
+                btn.classList.add('active', 'underline', 'underline-offset-4', 'decoration-[#1C1C1C26]');
+                currentSize = parseInt(btn.dataset.size);
+            });
+        });
+
+        // Set up color buttons
+        document.querySelectorAll('[data-color]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('[data-color]').forEach(b => {
+                    b.classList.remove('active');
+                    b.querySelector('div').classList.add('opacity-0');
+                });
+                btn.classList.add('active');
+                btn.querySelector('div').classList.remove('opacity-0');
+                currentColor = btn.dataset.color;
+            });
+        });
+
+        // Set canvas size to window size and redraw content
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            redrawCanvas();
+        }
+
+        // Initial resize and add resize listener
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Drawing functions
+        function startDrawing(e) {
+            isDrawing = true;
+            undonePaths = [];
+            currentPath = [{
+                x: e.offsetX,
+                y: e.offsetY,
+                size: currentSize,
+                color: currentColor
+            }];
+            draw(e);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+
+            currentPath.push({
+                x: e.offsetX,
+                y: e.offsetY,
+                size: currentSize,
+                color: currentColor
+            });
+
+            // Draw the current stroke
+            ctx.beginPath();
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = currentColor;
+            ctx.lineWidth = currentSize;
+
+            const point = currentPath[currentPath.length - 2];
+            ctx.moveTo(point.x, point.y);
+            ctx.lineTo(e.offsetX, e.offsetY);
+            ctx.stroke();
+        }
+
+        function stopDrawing() {
+            if (isDrawing) {
+                paths.push([...currentPath]);
+                currentPath = [];
+                saveToLocalStorage();
+            }
+            isDrawing = false;
+        }
+
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            paths.forEach(path => {
+                if (path.length < 2) return;
+
+                ctx.beginPath();
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = path[0].color;
+                ctx.lineWidth = path[0].size;
+
+                ctx.moveTo(path[0].x, path[0].y);
+                for (let i = 1; i < path.length; i++) {
+                    ctx.lineTo(path[i].x, path[i].y);
+                }
+                ctx.stroke();
+            });
+        }
+
+        // Modify undo function to store undone paths
+        function undo() {
+            const removedPath = paths.pop();
+            if (removedPath) {
+                undonePaths.push(removedPath);
+                redrawCanvas();
+                saveToLocalStorage();
+            }
+        }
+
+        // Add redo function
+        function redo() {
+            const pathToRestore = undonePaths.pop();
+            if (pathToRestore) {
+                paths.push(pathToRestore);
+                redrawCanvas();
+                saveToLocalStorage();
+            }
+        }
+
+        // Add save functionality
+        document.getElementById('download').addEventListener('click', function () {
+            // Create a temporary canvas to include the background
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            // Fill background
+            tempCtx.fillStyle = '#D0CAC6';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+            // Draw the original canvas content
+            tempCtx.drawImage(canvas, 0, 0);
+
+            // Create formatted date string
+            const now = new Date();
+            const date = now.toLocaleString('en-GB', {
+                year: '2-digit',
+                month: '2-digit',
+                day: '2-digit'
+            }).replace(/\//g, '');
+            const time = now.toLocaleString('en-GB', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            }).replace(':', '');
+
+            // Create a temporary link element
+            const link = document.createElement('a');
+            link.download = `Sketch-${date}-${time}.png`;
+            link.href = tempCanvas.toDataURL('image/png');
+            link.click();
+        });
+
+        // Add clear functionality
+        document.getElementById('clear').addEventListener('click', function () {
+            paths = [];
+            undonePaths = [];
+            redrawCanvas();
+            saveToLocalStorage();
+        });
+
+        // Event listeners
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+        undoButton.addEventListener('click', undo);
+        redoButton.addEventListener('click', redo);
+
+        // Load saved data when page loads
+        window.addEventListener('load', loadFromLocalStorage);
+
+        // Modify keyboard shortcuts
+        document.addEventListener('keydown', function (e) {
+            // Number keys 1-4 for colors
+            if (e.key >= '1' && e.key <= '4') {
+                const index = parseInt(e.key) - 1;
+                const colorButtons = document.querySelectorAll('[data-color]');
+                if (colorButtons[index]) {
+                    colorButtons.forEach(b => {
+                        b.classList.remove('active');
+                        b.querySelector('div').classList.add('opacity-0');
+                    });
+                    colorButtons[index].classList.add('active');
+                    colorButtons[index].querySelector('div').classList.remove('opacity-0');
+                    currentColor = colorButtons[index].dataset.color;
+                }
+            }
+
+            // Up and down arrows for brush size
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                const sizeButtons = document.querySelectorAll('[data-size]');
+                const currentIndex = Array.from(sizeButtons).findIndex(btn => btn.classList.contains('active'));
+                let newIndex;
+
+                if (e.key === 'ArrowUp') {
+                    newIndex = Math.min(currentIndex + 1, sizeButtons.length - 1);
+                } else {
+                    newIndex = Math.max(currentIndex - 1, 0);
+                }
+
+                sizeButtons.forEach(b => b.classList.remove('active', 'underline', 'underline-offset-4', 'decoration-[#1C1C1C26]'));
+                sizeButtons[newIndex].classList.add('active', 'underline', 'underline-offset-4', 'decoration-[#1C1C1C26]');
+                currentSize = parseInt(sizeButtons[newIndex].dataset.size);
+            }
+
+            // Backspace for clear
+            if (e.key === 'Backspace') {
+                paths = [];
+                undonePaths = [];
+                redrawCanvas();
+                saveToLocalStorage();
+            }
+
+            // Left arrow for undo, right arrow for redo
+            if (e.key === 'ArrowLeft') {
+                undo();
+            }
+            if (e.key === 'ArrowRight') {
+                redo();
+            }
+        });
+    </script>
+</body>
+
+</html>
