@@ -26,13 +26,13 @@
         </div>
 
         <div class="flex">
-            <button class="flex-1 py-9 active rounded-bl-xl relative" style="background-color: #262626"
+            <button class="flex-1  active rounded-bl-xl relative" style="background-color: #262626"
                 data-color="#262626">
                 <div
                     class="absolute w-2 h-2 bg-white/20 rounded-full top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                 </div>
             </button>
-            <button class="flex-1 py-8 relative" style="background-color: #FAFAFA" data-color="#FAFAFA">
+            <button class="flex-1 py- relative" style="background-color: #FAFAFA" data-color="#FAFAFA">
                 <div
                     class="absolute w-2 h-2 bg-black/10 rounded-full top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0">
                 </div>
@@ -180,24 +180,48 @@
         function draw(e) {
             if (!isDrawing) return;
 
-            currentPath.push({
+            const newPoint = {
                 x: e.offsetX,
                 y: e.offsetY,
                 size: currentSize,
                 color: currentColor
-            });
+            };
 
-            // Draw the current stroke
-            ctx.beginPath();
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.strokeStyle = currentColor;
-            ctx.lineWidth = currentSize;
+            currentPath.push(newPoint);
 
-            const point = currentPath[currentPath.length - 2];
-            ctx.moveTo(point.x, point.y);
-            ctx.lineTo(e.offsetX, e.offsetY);
-            ctx.stroke();
+            // Need at least 3 points to start smoothing
+            if (currentPath.length >= 3) {
+                const lastThreePoints = currentPath.slice(-3);
+
+                // Calculate speed for pressure simulation
+                const dx = lastThreePoints[2].x - lastThreePoints[1].x;
+                const dy = lastThreePoints[2].y - lastThreePoints[1].y;
+                const speed = Math.sqrt(dx * dx + dy * dy);
+
+                // Adjust size based on speed (faster = thinner line)
+                const speedFactor = Math.max(0.2, Math.min(1, 1 - speed / 100));
+                const adjustedSize = currentSize * speedFactor;
+
+                ctx.beginPath();
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = currentColor;
+                ctx.lineWidth = adjustedSize;
+
+                // Smooth curve using quadratic bezier
+                ctx.moveTo(lastThreePoints[0].x, lastThreePoints[0].y);
+
+                // Control point is the middle point
+                const cx = lastThreePoints[1].x;
+                const cy = lastThreePoints[1].y;
+
+                // End point is the midpoint between middle and last point
+                const ex = (lastThreePoints[1].x + lastThreePoints[2].x) / 2;
+                const ey = (lastThreePoints[1].y + lastThreePoints[2].y) / 2;
+
+                ctx.quadraticCurveTo(cx, cy, ex, ey);
+                ctx.stroke();
+            }
         }
 
         function stopDrawing() {
@@ -215,17 +239,29 @@
             paths.forEach(path => {
                 if (path.length < 2) return;
 
-                ctx.beginPath();
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                ctx.strokeStyle = path[0].color;
-                ctx.lineWidth = path[0].size;
+                for (let i = 1; i < path.length - 1; i++) {
+                    const point1 = path[i - 1];
+                    const point2 = path[i];
+                    const point3 = path[i + 1];
 
-                ctx.moveTo(path[0].x, path[0].y);
-                for (let i = 1; i < path.length; i++) {
-                    ctx.lineTo(path[i].x, path[i].y);
+                    // Calculate speed for pressure simulation
+                    const dx = point3.x - point2.x;
+                    const dy = point3.y - point2.y;
+                    const speed = Math.sqrt(dx * dx + dy * dy);
+                    const speedFactor = Math.max(0.2, Math.min(1, 1 - speed / 100));
+                    const adjustedSize = point2.size * speedFactor;
+
+                    ctx.beginPath();
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    ctx.strokeStyle = point2.color;
+                    ctx.lineWidth = adjustedSize;
+
+                    // Draw smooth curve
+                    ctx.moveTo((point1.x + point2.x) / 2, (point1.y + point2.y) / 2);
+                    ctx.quadraticCurveTo(point2.x, point2.y, (point2.x + point3.x) / 2, (point2.y + point3.y) / 2);
+                    ctx.stroke();
                 }
-                ctx.stroke();
             });
         }
 
