@@ -13,26 +13,27 @@
 
 </head>
 
-<body class="bg-[#D0CAC6] text-[#1C1C1CBF]">
+<body class="bg-[#D0CAC6] text-[#1C1C1CBF]"
+    style="background-image: radial-gradient(circle at 12px 12px, #00000040 1px, transparent 0); background-size: 24px 24px;">
 
     <div id="controls"
         class="flex flex-col rounded-xl bg-white/80 shadow-lg backdrop-blur-3xl w-80 m-6 fixed top-0 left-0">
 
         <div class="flex gap-5 py-6 justify-between items-center border-b border-[#1C1C1C26]">
-            <button class="ml-8" data-size="3">Small</button>
-            <button class="active underline underline-offset-4 decoration-[#1C1C1C26]" data-size="6">Regular</button>
-            <button data-size="12">Medium</button>
-            <button class="mr-8" data-size="24">Large</button>
+            <button class="ml-8" data-size="5">Small</button>
+            <button class="active underline underline-offset-4 decoration-[#1C1C1C26]" data-size="8">Regular</button>
+            <button data-size="13">Medium</button>
+            <button class="mr-8" data-size="18">Large</button>
         </div>
 
         <div class="flex">
-            <button class="flex-1 py-9 active rounded-bl-xl relative" style="background-color: #262626"
+            <button class="flex-1  active rounded-bl-xl relative" style="background-color: #262626"
                 data-color="#262626">
                 <div
                     class="absolute w-2 h-2 bg-white/20 rounded-full top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                 </div>
             </button>
-            <button class="flex-1 py-8 relative" style="background-color: #FAFAFA" data-color="#FAFAFA">
+            <button class="flex-1 py- relative" style="background-color: #FAFAFA" data-color="#FAFAFA">
                 <div
                     class="absolute w-2 h-2 bg-black/10 rounded-full top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0">
                 </div>
@@ -95,7 +96,7 @@
         </div>
     </div>
 
-    <canvas id="canvas"></canvas>
+    <canvas class="cursor-crosshair" id="canvas"></canvas>
 
     <script>
         const canvas = document.getElementById('canvas');
@@ -103,7 +104,7 @@
         const undoButton = document.getElementById('undo');
         const redoButton = document.getElementById('redo');
 
-        let currentSize = 6;
+        let currentSize = 10;
         let currentColor = '#262626';
         let isDrawing = false;
         let paths = [];
@@ -180,24 +181,60 @@
         function draw(e) {
             if (!isDrawing) return;
 
-            currentPath.push({
+            const newPoint = {
                 x: e.offsetX,
                 y: e.offsetY,
                 size: currentSize,
                 color: currentColor
-            });
+            };
 
-            // Draw the current stroke
-            ctx.beginPath();
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.strokeStyle = currentColor;
-            ctx.lineWidth = currentSize;
+            currentPath.push(newPoint);
 
-            const point = currentPath[currentPath.length - 2];
-            ctx.moveTo(point.x, point.y);
-            ctx.lineTo(e.offsetX, e.offsetY);
-            ctx.stroke();
+            // Need at least 3 points to start smoothing
+            if (currentPath.length >= 3) {
+                const lastThreePoints = currentPath.slice(-3);
+
+                // Calculate speed for pressure simulation with more granular steps
+                const dx = lastThreePoints[2].x - lastThreePoints[1].x;
+                const dy = lastThreePoints[2].y - lastThreePoints[1].y;
+                const speed = Math.sqrt(dx * dx + dy * dy);
+
+                // Create smoother transition with more steps
+                const maxSpeed = 150; // Increase range for more granular control
+                const minFactor = 0.2;
+                const speedFactor = Math.max(minFactor, Math.min(1,
+                    1 - (speed / maxSpeed) * (1 - minFactor)
+                ));
+
+                // Smooth out sudden changes in pressure
+                const prevSize = currentPath.length > 3 ?
+                    currentPath[currentPath.length - 2].size *
+                    Math.max(minFactor, Math.min(1, 1 - (speed / maxSpeed) * (1 - minFactor))) :
+                    currentSize * speedFactor;
+
+                const adjustedSize = currentSize * (speedFactor * 0.8 + 0.2);
+
+                // Interpolate between previous and current size for smoother transition
+                const finalSize = prevSize * 0.3 + adjustedSize * 0.7;
+
+                ctx.beginPath();
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = currentColor;
+                ctx.lineWidth = finalSize;
+
+                // Smooth curve using quadratic bezier
+                ctx.moveTo(lastThreePoints[0].x, lastThreePoints[0].y);
+
+                const cx = lastThreePoints[1].x;
+                const cy = lastThreePoints[1].y;
+
+                const ex = (lastThreePoints[1].x + lastThreePoints[2].x) / 2;
+                const ey = (lastThreePoints[1].y + lastThreePoints[2].y) / 2;
+
+                ctx.quadraticCurveTo(cx, cy, ex, ey);
+                ctx.stroke();
+            }
         }
 
         function stopDrawing() {
@@ -215,17 +252,29 @@
             paths.forEach(path => {
                 if (path.length < 2) return;
 
-                ctx.beginPath();
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                ctx.strokeStyle = path[0].color;
-                ctx.lineWidth = path[0].size;
+                for (let i = 1; i < path.length - 1; i++) {
+                    const point1 = path[i - 1];
+                    const point2 = path[i];
+                    const point3 = path[i + 1];
 
-                ctx.moveTo(path[0].x, path[0].y);
-                for (let i = 1; i < path.length; i++) {
-                    ctx.lineTo(path[i].x, path[i].y);
+                    // Calculate speed for pressure simulation
+                    const dx = point3.x - point2.x;
+                    const dy = point3.y - point2.y;
+                    const speed = Math.sqrt(dx * dx + dy * dy);
+                    const speedFactor = Math.max(0.2, Math.min(1, 1 - speed / 100));
+                    const adjustedSize = point2.size * speedFactor;
+
+                    ctx.beginPath();
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    ctx.strokeStyle = point2.color;
+                    ctx.lineWidth = adjustedSize;
+
+                    // Draw smooth curve
+                    ctx.moveTo((point1.x + point2.x) / 2, (point1.y + point2.y) / 2);
+                    ctx.quadraticCurveTo(point2.x, point2.y, (point2.x + point3.x) / 2, (point2.y + point3.y) / 2);
+                    ctx.stroke();
                 }
-                ctx.stroke();
             });
         }
 
