@@ -19,10 +19,10 @@
         class="flex flex-col rounded-xl bg-white/80 shadow-lg backdrop-blur-3xl w-80 m-6 fixed top-0 left-0">
 
         <div class="flex gap-5 py-6 justify-between items-center border-b border-[#1C1C1C26]">
-            <button class="ml-8" data-size="3">Small</button>
-            <button class="active underline underline-offset-4 decoration-[#1C1C1C26]" data-size="6">Regular</button>
-            <button data-size="12">Medium</button>
-            <button class="mr-8" data-size="24">Large</button>
+            <button class="ml-8" data-size="5">Small</button>
+            <button class="active underline underline-offset-4 decoration-[#1C1C1C26]" data-size="8">Regular</button>
+            <button data-size="13">Medium</button>
+            <button class="mr-8" data-size="18">Large</button>
         </div>
 
         <div class="flex">
@@ -103,7 +103,7 @@
         const undoButton = document.getElementById('undo');
         const redoButton = document.getElementById('redo');
 
-        let currentSize = 6;
+        let currentSize = 10;
         let currentColor = '#262626';
         let isDrawing = false;
         let paths = [];
@@ -193,29 +193,41 @@
             if (currentPath.length >= 3) {
                 const lastThreePoints = currentPath.slice(-3);
 
-                // Calculate speed for pressure simulation
+                // Calculate speed for pressure simulation with more granular steps
                 const dx = lastThreePoints[2].x - lastThreePoints[1].x;
                 const dy = lastThreePoints[2].y - lastThreePoints[1].y;
                 const speed = Math.sqrt(dx * dx + dy * dy);
 
-                // Adjust size based on speed (faster = thinner line)
-                const speedFactor = Math.max(0.2, Math.min(1, 1 - speed / 100));
-                const adjustedSize = currentSize * speedFactor;
+                // Create smoother transition with more steps
+                const maxSpeed = 150; // Increase range for more granular control
+                const minFactor = 0.2;
+                const speedFactor = Math.max(minFactor, Math.min(1,
+                    1 - (speed / maxSpeed) * (1 - minFactor)
+                ));
+
+                // Smooth out sudden changes in pressure
+                const prevSize = currentPath.length > 3 ?
+                    currentPath[currentPath.length - 2].size *
+                    Math.max(minFactor, Math.min(1, 1 - (speed / maxSpeed) * (1 - minFactor))) :
+                    currentSize * speedFactor;
+
+                const adjustedSize = currentSize * (speedFactor * 0.8 + 0.2);
+
+                // Interpolate between previous and current size for smoother transition
+                const finalSize = prevSize * 0.3 + adjustedSize * 0.7;
 
                 ctx.beginPath();
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
                 ctx.strokeStyle = currentColor;
-                ctx.lineWidth = adjustedSize;
+                ctx.lineWidth = finalSize;
 
                 // Smooth curve using quadratic bezier
                 ctx.moveTo(lastThreePoints[0].x, lastThreePoints[0].y);
 
-                // Control point is the middle point
                 const cx = lastThreePoints[1].x;
                 const cy = lastThreePoints[1].y;
 
-                // End point is the midpoint between middle and last point
                 const ex = (lastThreePoints[1].x + lastThreePoints[2].x) / 2;
                 const ey = (lastThreePoints[1].y + lastThreePoints[2].y) / 2;
 
