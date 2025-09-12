@@ -9,6 +9,19 @@
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="dot.png" />
+
+    <!-- Custom CSS for toolbar hover effect -->
+    <style>
+      #controls {
+        bottom: -104px;
+        transform: translateY(0);
+        transition: transform 0.3s ease-in-out;
+      }
+
+      #controls:hover {
+        transform: translateY(-104px);
+      }
+    </style>
   </head>
 
   <body
@@ -22,7 +35,7 @@
       background-size: 16px 16px;
     "
   >
-    <div id="controls" class="bg-white/80 fixed bottom-0 left-0">
+    <div id="controls" class="bg-white/80 fixed left-0">
       <!-- Size and Color Controls -->
       <div class="flex border-t border-r border-b border-gray-300">
         <button
