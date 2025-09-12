@@ -216,21 +216,28 @@
       let currentColor = "#262626";
       let isDrawing = false;
       let isStraightLineMode = false;
+      let isDripMode = false;
       let paths = [];
       let undonePaths = [];
       let currentPath = [];
+      let currentPathId = null;
       let straightLineStart = null;
+      let dripPaths = []; // Store drip paths separately
 
       // Load saved data from localStorage
       function loadFromLocalStorage() {
         const savedPaths = localStorage.getItem("drawingPaths");
         const savedUndonePaths = localStorage.getItem("drawingUndonePaths");
+        const savedDripPaths = localStorage.getItem("dripPaths");
 
         if (savedPaths) {
           paths = JSON.parse(savedPaths);
         }
         if (savedUndonePaths) {
           undonePaths = JSON.parse(savedUndonePaths);
+        }
+        if (savedDripPaths) {
+          dripPaths = JSON.parse(savedDripPaths);
         }
 
         redrawCanvas();
@@ -240,6 +247,7 @@
       function saveToLocalStorage() {
         localStorage.setItem("drawingPaths", JSON.stringify(paths));
         localStorage.setItem("drawingUndonePaths", JSON.stringify(undonePaths));
+        localStorage.setItem("dripPaths", JSON.stringify(dripPaths));
       }
 
       // Replace size buttons setup with new cycling logic
@@ -296,10 +304,107 @@
       resizeCanvas();
       window.addEventListener("resize", resizeCanvas);
 
+      // Function to create animated drips
+      function createDrips(x, y, size, color, parentPathId) {
+        // Much less frequent - only 1 drip occasionally
+        if (Math.random() > 0.15) return; // 15% chance instead of 30%
+
+        const dripX = x + (Math.random() - 0.5) * size * 0.5; // Smaller horizontal offset
+        const maxLength =
+          Math.random() < 0.1
+            ? 80 + Math.random() * 40
+            : 15 + Math.random() * 25; // Mostly small, occasional long
+        const dripId = "drip_" + Date.now() + "_" + Math.random();
+
+        // Create animated drip object
+        const drip = {
+          id: dripId,
+          parentPathId: parentPathId, // Associate with parent path
+          startX: dripX,
+          startY: y,
+          currentY: y,
+          targetY: y + maxLength,
+          size: size * 0.2,
+          color: color,
+          speed: 2 + Math.random() * 3, // Initial speed 2-5
+          friction: 0.95, // Slowdown factor
+          minSpeed: 0.1, // Minimum speed before stopping
+          isAnimating: true,
+        };
+
+        // Add to animated drips array
+        if (!window.animatedDrips) window.animatedDrips = [];
+        window.animatedDrips.push(drip);
+      }
+
+      // Function to animate drips
+      function animateDrips() {
+        if (!window.animatedDrips) return;
+
+        window.animatedDrips = window.animatedDrips.filter((drip) => {
+          if (!drip.isAnimating) return true;
+
+          // Update position
+          drip.currentY += drip.speed;
+
+          // Apply friction
+          drip.speed *= drip.friction;
+
+          // Stop if reached target or speed too low
+          if (drip.currentY >= drip.targetY || drip.speed < drip.minSpeed) {
+            drip.isAnimating = false;
+            drip.currentY = drip.targetY;
+
+            // Create final drip path and add to drip paths array
+            const dripPath = [
+              {
+                x: drip.startX,
+                y: drip.startY,
+                size: drip.size,
+                color: drip.color,
+              },
+              {
+                x: drip.startX,
+                y: drip.currentY,
+                size: drip.size * 0.3,
+                color: drip.color,
+              },
+            ];
+            dripPath.parentPathId = drip.parentPathId; // Associate with parent path
+            dripPaths.push(dripPath); // Store in separate drip paths array
+            saveToLocalStorage();
+            return false; // Remove from animation array
+          }
+
+          return true; // Keep animating
+        });
+
+        // Only redraw if not currently drawing (to preserve current drawing)
+        if (!isDrawing) {
+          redrawCanvas();
+        }
+
+        // Draw current animated drips
+        window.animatedDrips.forEach((drip) => {
+          if (drip.isAnimating) {
+            ctx.beginPath();
+            ctx.lineCap = "round";
+            ctx.strokeStyle = drip.color;
+            ctx.lineWidth = drip.size;
+            ctx.moveTo(drip.startX, drip.startY);
+            ctx.lineTo(drip.startX, drip.currentY);
+            ctx.stroke();
+          }
+        });
+      }
+
       // Drawing functions
       function startDrawing(e) {
         isDrawing = true;
         undonePaths = [];
+
+        // Generate unique ID for this path
+        const pathId = "path_" + Date.now() + "_" + Math.random();
 
         if (isStraightLineMode) {
           // For straight lines, just store the start point
@@ -322,6 +427,9 @@
           ];
           draw(e);
         }
+
+        // Store the path ID for this drawing session
+        currentPathId = pathId;
       }
 
       function draw(e) {
@@ -354,6 +462,17 @@
           };
 
           currentPath.push(newPoint);
+
+          // Create drips if in drip mode
+          if (isDripMode) {
+            createDrips(
+              e.offsetX,
+              e.offsetY,
+              currentSize,
+              currentColor,
+              currentPathId
+            );
+          }
 
           // Draw smooth curves
           if (currentPath.length >= 2) {
@@ -401,8 +520,14 @@
             };
             currentPath = [straightLineStart, endPoint];
           }
-          paths.push([...currentPath]);
+
+          // Add path ID to the path before saving
+          const pathToSave = [...currentPath];
+          pathToSave.pathId = currentPathId;
+          paths.push(pathToSave);
+
           currentPath = [];
+          currentPathId = null;
           straightLineStart = null;
 
           // Redraw canvas to show the solid line immediately
@@ -415,6 +540,7 @@
       function redrawCanvas() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        // Draw regular paths
         paths.forEach((path) => {
           if (path.length < 2) return;
 
@@ -449,12 +575,42 @@
           }
           ctx.stroke();
         });
+
+        // Draw drip paths
+        dripPaths.forEach((dripPath) => {
+          if (dripPath.length < 2) return;
+
+          ctx.beginPath();
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.strokeStyle = dripPath[0].color;
+          ctx.lineWidth = dripPath[0].size;
+
+          // Drips are simple lines
+          ctx.moveTo(dripPath[0].x, dripPath[0].y);
+          ctx.lineTo(dripPath[1].x, dripPath[1].y);
+          ctx.stroke();
+        });
       }
 
       // Modify undo function to store undone paths
       function undo() {
         const removedPath = paths.pop();
         if (removedPath) {
+          // Remove associated drips from animated drips
+          if (removedPath.pathId && window.animatedDrips) {
+            window.animatedDrips = window.animatedDrips.filter(
+              (drip) => drip.parentPathId !== removedPath.pathId
+            );
+          }
+
+          // Remove associated drips from permanent drip paths
+          if (removedPath.pathId) {
+            dripPaths = dripPaths.filter(
+              (dripPath) => dripPath.parentPathId !== removedPath.pathId
+            );
+          }
+
           undonePaths.push(removedPath);
           redrawCanvas();
           saveToLocalStorage();
@@ -465,14 +621,11 @@
       function redo() {
         const pathToRestore = undonePaths.pop();
         if (pathToRestore) {
-          // Check if this is a clear operation (array of arrays) or single path
-          if (
-            Array.isArray(pathToRestore) &&
-            pathToRestore.length > 0 &&
-            Array.isArray(pathToRestore[0])
-          ) {
-            // This is a clear operation - restore all paths
-            paths = [...pathToRestore];
+          // Check if this is a clear operation (object with paths and dripPaths) or single path
+          if (pathToRestore.paths && pathToRestore.dripPaths) {
+            // This is a clear operation - restore all paths and drips
+            paths = [...pathToRestore.paths];
+            dripPaths = [...pathToRestore.dripPaths];
           } else {
             // This is a single path
             paths.push(pathToRestore);
@@ -526,11 +679,13 @@
       // Add clear functionality that can be undone
       function clearCanvas() {
         // Only clear if there are paths to clear
-        if (paths.length > 0) {
+        if (paths.length > 0 || dripPaths.length > 0) {
           // Save current state to undo stack before clearing
           const currentPaths = [...paths];
-          undonePaths = [currentPaths]; // Save all current paths as one undo action
+          const currentDripPaths = [...dripPaths];
+          undonePaths = [{paths: currentPaths, dripPaths: currentDripPaths}]; // Save all current paths and drips as one undo action
           paths = [];
+          dripPaths = [];
           redrawCanvas();
           saveToLocalStorage();
         }
@@ -576,10 +731,19 @@
       // Load saved data when page loads
       window.addEventListener("load", loadFromLocalStorage);
 
-      // Handle keyup events for straight line mode
+      // Start drip animation loop
+      function startDripAnimation() {
+        setInterval(animateDrips, 16); // ~60fps
+      }
+      startDripAnimation();
+
+      // Handle keyup events for straight line mode and drip mode
       document.addEventListener("keyup", function (e) {
         if (e.key === "Meta" || e.key === "Control") {
           isStraightLineMode = false;
+        }
+        if (e.key === "Shift") {
+          isDripMode = false;
         }
       });
 
@@ -588,6 +752,11 @@
         // Cmd/Ctrl key for straight line mode
         if (e.metaKey || e.ctrlKey) {
           isStraightLineMode = true;
+        }
+
+        // Shift key for drip mode
+        if (e.shiftKey) {
+          isDripMode = true;
         }
 
         // Number keys 1-4 for colors
