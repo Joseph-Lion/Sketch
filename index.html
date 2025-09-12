@@ -433,7 +433,18 @@
       function redo() {
         const pathToRestore = undonePaths.pop();
         if (pathToRestore) {
-          paths.push(pathToRestore);
+          // Check if this is a clear operation (array of arrays) or single path
+          if (
+            Array.isArray(pathToRestore) &&
+            pathToRestore.length > 0 &&
+            Array.isArray(pathToRestore[0])
+          ) {
+            // This is a clear operation - restore all paths
+            paths = [...pathToRestore];
+          } else {
+            // This is a single path
+            paths.push(pathToRestore);
+          }
           redrawCanvas();
           saveToLocalStorage();
         }
@@ -480,13 +491,20 @@
           link.click();
         });
 
-      // Add clear functionality
-      document.getElementById("clear").addEventListener("click", function () {
-        paths = [];
-        undonePaths = [];
-        redrawCanvas();
-        saveToLocalStorage();
-      });
+      // Add clear functionality that can be undone
+      function clearCanvas() {
+        // Only clear if there are paths to clear
+        if (paths.length > 0) {
+          // Save current state to undo stack before clearing
+          const currentPaths = [...paths];
+          undonePaths = [currentPaths]; // Save all current paths as one undo action
+          paths = [];
+          redrawCanvas();
+          saveToLocalStorage();
+        }
+      }
+
+      document.getElementById("clear").addEventListener("click", clearCanvas);
 
       // Event listeners
       canvas.addEventListener("mousedown", startDrawing);
@@ -559,10 +577,7 @@
 
         // Backspace for clear
         if (e.key === "Backspace") {
-          paths = [];
-          undonePaths = [];
-          redrawCanvas();
-          saveToLocalStorage();
+          clearCanvas();
         }
 
         // Left arrow for undo, right arrow for redo
