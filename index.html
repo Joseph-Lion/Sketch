@@ -321,54 +321,35 @@
 
         currentPath.push(newPoint);
 
-        // Need at least 3 points to start smoothing
-        if (currentPath.length >= 3) {
-          const lastThreePoints = currentPath.slice(-3);
-
-          // Calculate speed for pressure simulation with more granular steps
-          const dx = lastThreePoints[2].x - lastThreePoints[1].x;
-          const dy = lastThreePoints[2].y - lastThreePoints[1].y;
-          const speed = Math.sqrt(dx * dx + dy * dy);
-
-          // Create smoother transition with more steps
-          const maxSpeed = 150; // Increase range for more granular control
-          const minFactor = 0.2;
-          const speedFactor = Math.max(
-            minFactor,
-            Math.min(1, 1 - (speed / maxSpeed) * (1 - minFactor))
-          );
-
-          // Smooth out sudden changes in pressure
-          const prevSize =
-            currentPath.length > 3
-              ? currentPath[currentPath.length - 2].size *
-                Math.max(
-                  minFactor,
-                  Math.min(1, 1 - (speed / maxSpeed) * (1 - minFactor))
-                )
-              : currentSize * speedFactor;
-
-          const adjustedSize = currentSize * (speedFactor * 0.8 + 0.2);
-
-          // Interpolate between previous and current size for smoother transition
-          const finalSize = prevSize * 0.3 + adjustedSize * 0.7;
-
+        // Draw smooth curves
+        if (currentPath.length >= 2) {
           ctx.beginPath();
           ctx.lineCap = "round";
           ctx.lineJoin = "round";
           ctx.strokeStyle = currentColor;
-          ctx.lineWidth = finalSize;
+          ctx.lineWidth = currentSize;
 
-          // Smooth curve using quadratic bezier
-          ctx.moveTo(lastThreePoints[0].x, lastThreePoints[0].y);
+          if (currentPath.length === 2) {
+            // For the first segment, just draw a line
+            const prevPoint = currentPath[currentPath.length - 2];
+            const currentPoint = currentPath[currentPath.length - 1];
+            ctx.moveTo(prevPoint.x, prevPoint.y);
+            ctx.lineTo(currentPoint.x, currentPoint.y);
+          } else {
+            // For subsequent segments, use quadratic curves for smoothness
+            const prevPoint = currentPath[currentPath.length - 3];
+            const currentPoint = currentPath[currentPath.length - 2];
+            const nextPoint = currentPath[currentPath.length - 1];
 
-          const cx = lastThreePoints[1].x;
-          const cy = lastThreePoints[1].y;
+            // Calculate control point for smooth curve
+            const cp1x = (prevPoint.x + currentPoint.x) / 2;
+            const cp1y = (prevPoint.y + currentPoint.y) / 2;
+            const cp2x = (currentPoint.x + nextPoint.x) / 2;
+            const cp2y = (currentPoint.y + nextPoint.y) / 2;
 
-          const ex = (lastThreePoints[1].x + lastThreePoints[2].x) / 2;
-          const ey = (lastThreePoints[1].y + lastThreePoints[2].y) / 2;
-
-          ctx.quadraticCurveTo(cx, cy, ex, ey);
+            ctx.moveTo(cp1x, cp1y);
+            ctx.quadraticCurveTo(currentPoint.x, currentPoint.y, cp2x, cp2y);
+          }
           ctx.stroke();
         }
       }
@@ -388,34 +369,36 @@
         paths.forEach((path) => {
           if (path.length < 2) return;
 
-          for (let i = 1; i < path.length - 1; i++) {
-            const point1 = path[i - 1];
-            const point2 = path[i];
-            const point3 = path[i + 1];
+          // Draw smooth curves for the entire path
+          ctx.beginPath();
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.strokeStyle = path[0].color;
+          ctx.lineWidth = path[0].size;
 
-            // Calculate speed for pressure simulation
-            const dx = point3.x - point2.x;
-            const dy = point3.y - point2.y;
-            const speed = Math.sqrt(dx * dx + dy * dy);
-            const speedFactor = Math.max(0.2, Math.min(1, 1 - speed / 100));
-            const adjustedSize = point2.size * speedFactor;
+          if (path.length === 2) {
+            // For single segment, just draw a line
+            ctx.moveTo(path[0].x, path[0].y);
+            ctx.lineTo(path[1].x, path[1].y);
+          } else {
+            // For multiple segments, use smooth curves
+            ctx.moveTo(path[0].x, path[0].y);
 
-            ctx.beginPath();
-            ctx.lineCap = "round";
-            ctx.lineJoin = "round";
-            ctx.strokeStyle = point2.color;
-            ctx.lineWidth = adjustedSize;
+            for (let i = 1; i < path.length - 1; i++) {
+              const prevPoint = path[i - 1];
+              const currentPoint = path[i];
+              const nextPoint = path[i + 1];
 
-            // Draw smooth curve
-            ctx.moveTo((point1.x + point2.x) / 2, (point1.y + point2.y) / 2);
-            ctx.quadraticCurveTo(
-              point2.x,
-              point2.y,
-              (point2.x + point3.x) / 2,
-              (point2.y + point3.y) / 2
-            );
-            ctx.stroke();
+              // Calculate control points for smooth curve
+              const cp1x = (prevPoint.x + currentPoint.x) / 2;
+              const cp1y = (prevPoint.y + currentPoint.y) / 2;
+              const cp2x = (currentPoint.x + nextPoint.x) / 2;
+              const cp2y = (currentPoint.y + nextPoint.y) / 2;
+
+              ctx.quadraticCurveTo(currentPoint.x, currentPoint.y, cp2x, cp2y);
+            }
           }
+          ctx.stroke();
         });
       }
 
