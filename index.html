@@ -215,9 +215,11 @@
       let currentSize = 10;
       let currentColor = "#262626";
       let isDrawing = false;
+      let isStraightLineMode = false;
       let paths = [];
       let undonePaths = [];
       let currentPath = [];
+      let straightLineStart = null;
 
       // Load saved data from localStorage
       function loadFromLocalStorage() {
@@ -298,66 +300,113 @@
       function startDrawing(e) {
         isDrawing = true;
         undonePaths = [];
-        currentPath = [
-          {
+
+        if (isStraightLineMode) {
+          // For straight lines, just store the start point
+          straightLineStart = {
             x: e.offsetX,
             y: e.offsetY,
             size: currentSize,
             color: currentColor,
-          },
-        ];
-        draw(e);
+          };
+          currentPath = [straightLineStart];
+        } else {
+          // For normal drawing, start with the first point
+          currentPath = [
+            {
+              x: e.offsetX,
+              y: e.offsetY,
+              size: currentSize,
+              color: currentColor,
+            },
+          ];
+          draw(e);
+        }
       }
 
       function draw(e) {
         if (!isDrawing) return;
 
-        const newPoint = {
-          x: e.offsetX,
-          y: e.offsetY,
-          size: currentSize,
-          color: currentColor,
-        };
+        if (isStraightLineMode) {
+          // For straight lines, clear canvas and redraw everything, then draw preview line
+          redrawCanvas();
 
-        currentPath.push(newPoint);
-
-        // Draw smooth curves
-        if (currentPath.length >= 2) {
-          ctx.beginPath();
-          ctx.lineCap = "round";
-          ctx.lineJoin = "round";
-          ctx.strokeStyle = currentColor;
-          ctx.lineWidth = currentSize;
-
-          if (currentPath.length === 2) {
-            // For the first segment, just draw a line
-            const prevPoint = currentPath[currentPath.length - 2];
-            const currentPoint = currentPath[currentPath.length - 1];
-            ctx.moveTo(prevPoint.x, prevPoint.y);
-            ctx.lineTo(currentPoint.x, currentPoint.y);
-          } else {
-            // For subsequent segments, use quadratic curves for smoothness
-            const prevPoint = currentPath[currentPath.length - 3];
-            const currentPoint = currentPath[currentPath.length - 2];
-            const nextPoint = currentPath[currentPath.length - 1];
-
-            // Calculate control point for smooth curve
-            const cp1x = (prevPoint.x + currentPoint.x) / 2;
-            const cp1y = (prevPoint.y + currentPoint.y) / 2;
-            const cp2x = (currentPoint.x + nextPoint.x) / 2;
-            const cp2y = (currentPoint.y + nextPoint.y) / 2;
-
-            ctx.moveTo(cp1x, cp1y);
-            ctx.quadraticCurveTo(currentPoint.x, currentPoint.y, cp2x, cp2y);
+          // Draw preview line from start to current mouse position
+          if (straightLineStart) {
+            ctx.beginPath();
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.strokeStyle = currentColor;
+            ctx.lineWidth = currentSize;
+            ctx.setLineDash([5, 5]); // Dashed line for preview
+            ctx.moveTo(straightLineStart.x, straightLineStart.y);
+            ctx.lineTo(e.offsetX, e.offsetY);
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset line dash
           }
-          ctx.stroke();
+        } else {
+          // Normal drawing with smooth curves
+          const newPoint = {
+            x: e.offsetX,
+            y: e.offsetY,
+            size: currentSize,
+            color: currentColor,
+          };
+
+          currentPath.push(newPoint);
+
+          // Draw smooth curves
+          if (currentPath.length >= 2) {
+            ctx.beginPath();
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.strokeStyle = currentColor;
+            ctx.lineWidth = currentSize;
+
+            if (currentPath.length === 2) {
+              // For the first segment, just draw a line
+              const prevPoint = currentPath[currentPath.length - 2];
+              const currentPoint = currentPath[currentPath.length - 1];
+              ctx.moveTo(prevPoint.x, prevPoint.y);
+              ctx.lineTo(currentPoint.x, currentPoint.y);
+            } else {
+              // For subsequent segments, use quadratic curves for smoothness
+              const prevPoint = currentPath[currentPath.length - 3];
+              const currentPoint = currentPath[currentPath.length - 2];
+              const nextPoint = currentPath[currentPath.length - 1];
+
+              // Calculate control point for smooth curve
+              const cp1x = (prevPoint.x + currentPoint.x) / 2;
+              const cp1y = (prevPoint.y + currentPoint.y) / 2;
+              const cp2x = (currentPoint.x + nextPoint.x) / 2;
+              const cp2y = (currentPoint.y + nextPoint.y) / 2;
+
+              ctx.moveTo(cp1x, cp1y);
+              ctx.quadraticCurveTo(currentPoint.x, currentPoint.y, cp2x, cp2y);
+            }
+            ctx.stroke();
+          }
         }
       }
 
       function stopDrawing() {
         if (isDrawing) {
+          if (isStraightLineMode && straightLineStart) {
+            // For straight lines, create a path with just start and end points
+            const endPoint = {
+              x: event.offsetX || straightLineStart.x,
+              y: event.offsetY || straightLineStart.y,
+              size: currentSize,
+              color: currentColor,
+            };
+            currentPath = [straightLineStart, endPoint];
+          }
           paths.push([...currentPath]);
           currentPath = [];
+          straightLineStart = null;
+
+          // Redraw canvas to show the solid line immediately
+          redrawCanvas();
           saveToLocalStorage();
         }
         isDrawing = false;
@@ -527,8 +576,20 @@
       // Load saved data when page loads
       window.addEventListener("load", loadFromLocalStorage);
 
+      // Handle keyup events for straight line mode
+      document.addEventListener("keyup", function (e) {
+        if (e.key === "Meta" || e.key === "Control") {
+          isStraightLineMode = false;
+        }
+      });
+
       // Modify keyboard shortcuts
       document.addEventListener("keydown", function (e) {
+        // Cmd/Ctrl key for straight line mode
+        if (e.metaKey || e.ctrlKey) {
+          isStraightLineMode = true;
+        }
+
         // Number keys 1-4 for colors
         if (e.key >= "1" && e.key <= "4") {
           const index = parseInt(e.key) - 1;
